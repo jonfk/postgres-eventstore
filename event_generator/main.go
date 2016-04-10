@@ -25,12 +25,12 @@ func main() {
 	app.Run(os.Args)
 }
 
-type PositivePayload struct {
+type Payload struct {
 	Value int `json:"value"`
 }
 
 type Event struct {
-	ID          int
+	ID          int    `db:"omitempty"`
 	EventID     string `db:"event_id"`
 	EventType   string `db:"event_type"`
 	EventOffset int    `db:"event_offset"`
@@ -39,11 +39,8 @@ type Event struct {
 }
 
 func action(c *cli.Context) {
-	// dbUser := os.Getenv("DATABASE_USER")
-	// dbPass := os.Getenv("DATABASE_PASSWORD")
-	// dbName := os.Getenv("DATABASE_NAME")
 	dbUrl := os.Getenv("DATABASE_URL") + `?sslmode=disable`
-	db, err := sqlx.Connect("postgres", dbUrl) //fmt.Sprintf("user=%s password=%s dbname=%s sslmode=disable", dbUser, dbPass, dbName))
+	db, err := sqlx.Connect("postgres", dbUrl)
 	if err != nil {
 		log.WithFields(log.Fields{
 			"err": err,
@@ -51,14 +48,46 @@ func action(c *cli.Context) {
 	}
 
 	tx := db.MustBegin()
-	for i := 0; i < 10; i++ {
-		eventId := uuid.NewV4()
-		eventType := "positive"
-		timestamp := time.Now()
-		payload := PositivePayload{Value: rand.Int()}
-		JSONPayload, _ := json.Marshal(payload)
-		tx.MustExec("INSERT INTO events (event_id, event_type, event_offset, timestamp, payload) VALUES ($1, $2, $3, $4, $5)", eventId, eventType, i, timestamp, JSONPayload)
+	for i := 0; i < 100; i++ {
+		// tx.MustExec("INSERT INTO events (event_id, event_type, event_offset, timestamp, payload) VALUES ($1, $2, $3, $4, $5)", eventId, eventType, i, timestamp, JSONPayload)
+		event := generateEvent(i)
+		_, err := tx.NamedExec("INSERT INTO events (event_id, event_type, event_offset, timestamp, payload) VALUES (:event_id, :event_type, :event_offset, :timestamp, :payload)", &event)
+		if err != nil {
+			log.WithFields(log.Fields{
+				"err": err,
+			}).Fatal("named exec")
+		}
 	}
 	tx.Commit()
 
+}
+
+func generateEvent(offset int) Event {
+	eventId := uuid.NewV4()
+	eventType := "positive"
+	isPositiveEvent := rand.Int()%2 == 0
+	if !isPositiveEvent {
+		eventType = "negative"
+	}
+	timestamp := time.Now()
+	value := rand.Intn(100)
+	if !isPositiveEvent {
+		value = -value
+	}
+	payload := Payload{Value: value}
+	JSONPayload, err := json.Marshal(payload)
+
+	if err != nil {
+		log.WithFields(log.Fields{
+			"err": err,
+		}).Fatal("json marshal error in generate event")
+	}
+
+	return Event{
+		EventID:     eventId.String(),
+		EventType:   eventType,
+		EventOffset: offset,
+		Timestamp:   timestamp,
+		Payload:     JSONPayload,
+	}
 }
