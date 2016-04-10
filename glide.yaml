@@ -1,0 +1,9 @@
+package: .
+import:
+- package: github.com/Sirupsen/logrus
+- package: github.com/codegangsta/cli
+- package: github.com/jmoiron/sqlx
+  subpackages:
+  - types
+- package: github.com/lib/pq
+- package: github.com/satori/go.uuid
