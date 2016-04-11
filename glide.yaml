@@ -7,3 +7,5 @@ import:
   - types
 - package: github.com/lib/pq
 - package: github.com/satori/go.uuid
+- package: gopkg.in/gemnasium/logrus-airbrake-hook.v2
+- package: gopkg.in/airbrake/gobrake.v2
